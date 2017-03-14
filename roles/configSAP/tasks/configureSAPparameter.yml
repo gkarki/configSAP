@@ -1,0 +1,86 @@
+---
+ - name: install List of packages
+   yum: pkg={{ item }} state=installed
+   with_items:
+     - httpd
+     - libselinux-python
+ - name: Enable Services for automatic start
+   #action: command /sbin/chkconfig {{ item }} on
+   service:
+      name: "{{ item }}"
+      enabled: yes
+      state: started
+   with_items:
+     - httpd
+ - name: Add Below List of users
+   user: name={{ item.name }} password={{ item.password | password_hash('sha512') }} groups=wheel shell=/bin/bash state=present
+   with_items:
+       - { name: 'gkarki', password: '#iBd:37c' }
+       - { name: 'ddvota', password: 'C:2M#WmH' }
+ - name: Allow Wheel group to have passwordless sudo
+   lineinfile:
+      dest: /etc/sudoers
+      state: present
+      backup: yes
+      regexp: '^%wheel\s'
+      line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+      validate: 'visudo -cf %s'
+ - name: Disable SELinux
+   selinux:
+     state: disabled
+ - name: Set Sysctl
+   sysctl:
+     name: "{{ item.name }}"
+     value: "{{ item.value }}"
+     state: present
+   with_items:
+       - { name: 'kernel.msgmni', value: '1024' }
+       - { name: 'kernel.sem', value: '1250 256000 100 1024' }
+   ignore_errors: yes
+ - name: Security Limits
+   pam_limits:
+     backup: yes
+     domain: '{{ item.domain }}'
+     limit_type: '{{ item.Ltype }}'
+     limit_item: '{{ item.Litem }}'
+     #use_max: '{{ item.max }}'
+     #use_min: '{{ item.min }}'
+     value: '{{ item.value }}'
+   ignore_errors: yes
+   with_items:
+      - { domain: '*', Ltype: 'soft' , Litem: 'core', value: '0' }
+      - { domain: '*', Ltype: 'hard' , Litem: 'core', value: '0' }
+
+ - name: Create /etc/security/limits.d/99-hana.conf
+   copy:
+     src: 99-hana.conf
+     dest: /etc/security/limits.d/99-hana.conf
+
+ - name: Update tmpwatch
+   copy:
+     src: tmpwatch
+     dest: /etc/cron.daily/tmpwatch
+ - name: Disable Huge Page
+   lineinfile:
+      dest: /etc/rc.local
+      regexp: "^echo never"
+      line: "echo never >  /sys/kernel/mm/transparent_hugepage/enabled"
+
+ - name: Diasble C-State and Storage Optimization for RHEL6
+   lineinfile:
+      dest: /etc/grub.conf
+      backup: yes
+      backrefs: yes
+      state: present
+      regexp: '(^\s+kernel(\s+(?!(elevator=noop vmw_pvscsi.cmd_per_lun=254 vmw_pvscsi.ring_pages=32))[\w=/\-\.]+)*)\s*$'
+      line: '\1 elevator=noop vmw_pvscsi.cmd_per_lun=254 vmw_pvscsi.ring_pages=32'
+   when: (ansible_distribution == "CentOS" and ansible_distribution_major_version == "6")
+
+ - name: Diasble C-State and Storage Optimization for RHEL7
+   action: command grubby --update-kernel=ALL --args={{ item }}
+   with_items:
+      - elevator=noop
+      - vmw_pvscsi.cmd_per_lun=254
+      - vmw_pvscsi.ring_pages=32
+   when: (ansible_distribution == "CentOS" and ansible_distribution_major_version == "7")
+

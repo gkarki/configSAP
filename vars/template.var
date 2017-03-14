@@ -1,0 +1,7 @@
+server:
+  server1: {datacenter: Dallas-TX-DC, hostname: 192.168.0.25, ip: 192.168.0.123, ip2: 10.0.0.1, name: gktest21,
+  templateSrc: gktest1}
+
+  server2: {datacenter: Dallas-TX-DC, hostname: 192.168.0.25, ip: 192.168.0.124, ip2: 10.0.0.2, name: gktest22,
+  templateSrc: gktest1}
+
