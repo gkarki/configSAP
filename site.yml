@@ -1,6 +1,6 @@
 ---
 - name: configure SAP Parameter
-  hosts: clc
+  hosts: all
   
   roles:
   - configSAP
